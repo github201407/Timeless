@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity {
         mRecyclerView.setLayoutManager(new GridLayoutManager(this, 3));
 
 
-//        upLoadImageThread();
+        upLoadImageThread();
     }
 
     private void upLoadImageThread() {
@@ -74,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
         File directory = Environment.getExternalStorageDirectory();
         File imageFile = new File(directory, name);
 
-        String BASE_URL = "http://upload.qiniu.com";
+        String BASE_URL = "http://up.qiniu.com";
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl(BASE_URL)
                 .addConverterFactory(JacksonConverterFactory.create())
@@ -84,10 +84,10 @@ public class MainActivity extends AppCompatActivity {
 
         UploadApi apiService = retrofit.create(UploadApi.class);
 
-        long deadline = System.currentTimeMillis() / 1000L;
+        long deadline = System.currentTimeMillis() / 1000L + 3600;
         String bucket = "timeless";
-        String scope = name + ":" + bucket;
-        String token = QiUtils.getUpToken(deadline, bucket, name, scope, imageFile);
+        String scope = bucket + ":" + name;
+        String token = QiUtils.getUpToken(deadline, scope);
         Call<JSONObject> jsonObjectCall = apiService.upLoadFile(file, token);
         jsonObjectCall.enqueue(new Callback<JSONObject>() {
             @Override

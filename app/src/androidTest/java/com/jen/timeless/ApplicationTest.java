@@ -49,7 +49,7 @@ public class ApplicationTest extends InstrumentationTestCase {
 
         File directory = Environment.getExternalStorageDirectory();
         File imageFile = new File(directory, name);
-        String uploadToken = QiUtils.getUpToken(deadline, bucket, name, scope, imageFile);
+        String uploadToken = QiUtils.getUpToken(deadline, scope);
 
         //
         Bitmap bitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
@@ -58,15 +58,11 @@ public class ApplicationTest extends InstrumentationTestCase {
     }
 
 
-
-    public void testHmacSha1() throws Exception{
+    public void testHmacSha1() throws Exception {
         String encodedPutPolicy = "eyJzY29wZSI6Im15LWJ1Y2tldDpzdW5mbG93ZXIuanBnIiwiZGVhZGxpbmUiOjE0NTE0OTEyMDAsInJldHVybkJvZHkiOiJ7XCJuYW1lXCI6JChmbmFtZSksXCJzaXplXCI6JChmc2l6ZSksXCJ3XCI6JChpbWFnZUluZm8ud2lkdGgpLFwiaFwiOiQoaW1hZ2VJbmZvLmhlaWdodCksXCJoYXNoXCI6JChldGFnKX0ifQ==";
         String secretKey = "MY_SECRET_KEY";
         /* 4. 使用SecretKey对上一步生成的待签名字符串计算HMAC-SHA1签名：*/
         byte[] sign = HmacSha1.hmacSha1byte(encodedPutPolicy, secretKey);
-
-//        String expectedSign = "c10e287f2b1e7f547b20a9ebce2aada26ab20ef2";
-//        Assert.assertEquals(expectedSign, sign);
 
         /* 5. 对签名进行URL安全的Base64编码：*/
         String encodedSign = UrlSafeBase64.encodeToString(sign);
@@ -82,7 +78,7 @@ public class ApplicationTest extends InstrumentationTestCase {
         Assert.assertEquals(expectedUploadToken, uploadToken);
     }
 
-    public void testHmacSha1WithString() throws Exception{
+    public void testHmacSha1WithString() throws Exception {
         String base = "Computes";
         String key = "abc";
         String expected = "17324ac07fe47cc8cb151f59741445fe0baa98cb";
@@ -101,19 +97,19 @@ public class ApplicationTest extends InstrumentationTestCase {
 
 //        runTestOnUiThread(new Runnable() {
 //            public void run() {
-                String uploadToken = "BuGr5bBZsBUdC-NAGKim9n52BfNPqhRo9fkzTUzP:h0mXD9InPN3SVxokTSfu8bOyAE4=:eyJzY29wZSI6InRpbWVsZXNzIiwiZGVhZGxpbmUiOjE0NTc5NTE5MDB9";
-                String name = "hello";
+        String uploadToken = "BuGr5bBZsBUdC-NAGKim9n52BfNPqhRo9fkzTUzP:h0mXD9InPN3SVxokTSfu8bOyAE4=:eyJzY29wZSI6InRpbWVsZXNzIiwiZGVhZGxpbmUiOjE0NTc5NTE5MDB9";
+        String name = "hello";
 //                File directory = Environment.getExternalStorageDirectory();
 //                File imageFile = new File(directory, name);
-                UploadManager uploadManager = new UploadManager();
-                uploadManager.put(name.getBytes(), name, uploadToken, new UpCompletionHandler() {
-                    @Override
-                    public void complete(String key, ResponseInfo info, JSONObject response) {
-                        Log.e(TAG, "complete: " + key);
-                        Log.e(TAG, "complete: " + info.toString());
-                        Log.e(TAG, "complete: " + response.toString());
-                    }
-                }, null);
+        UploadManager uploadManager = new UploadManager();
+        uploadManager.put(name.getBytes(), name, uploadToken, new UpCompletionHandler() {
+            @Override
+            public void complete(String key, ResponseInfo info, JSONObject response) {
+                Log.e(TAG, "complete: " + key);
+                Log.e(TAG, "complete: " + info.toString());
+                Log.e(TAG, "complete: " + response.toString());
+            }
+        }, null);
 //            }
 //        });
     }
@@ -133,10 +129,10 @@ public class ApplicationTest extends InstrumentationTestCase {
 
         @Multipart
         @POST("/some/endpoint")
-        Call<JSONObject> upLoadFile(@Part("file") RequestBody  file, @Part("token") String token);
+        Call<JSONObject> upLoadFile(@Part("file") RequestBody file, @Part("token") String token);
     }
 
-    public void testRetrofit() throws Exception{
+    public void testRetrofit() throws Exception {
         Runnable runnable = new Runnable() {
             public void run() {
                 try {
@@ -167,8 +163,8 @@ public class ApplicationTest extends InstrumentationTestCase {
 
         long deadline = System.currentTimeMillis() / 1000L;
         String bucket = "timeless";
-        String scope = name + ":" + bucket;
-        String token = QiUtils.getUpToken(deadline, bucket, name, scope, imageFile);
+        String scope = bucket + ":" + name;
+        String token = QiUtils.getUpToken(deadline, scope);
         Call<JSONObject> jsonObjectCall = apiService.upLoadFile(file, token);
 //        Response<JSONObject> execute = jsonObjectCall.execute();
 //        assertEquals(200, execute.code());
@@ -184,5 +180,32 @@ public class ApplicationTest extends InstrumentationTestCase {
                 Log.e(TAG, "onFailure: ", t);
             }
         });
+    }
+
+    public void testUpTokenIsRight() throws NoSuchAlgorithmException, InvalidKeyException, IOException {
+        String name = "sunflower.jpg";
+        long deadline = 1451491200;
+        String bucket = "my-bucket";
+        String scope = bucket + ":" + name;
+        String secretKey = "MY_SECRET_KEY";
+        String accessKey = "MY_ACCESS_KEY";
+        String token = QiUtils.getUpToken(deadline, scope, secretKey, accessKey);
+        String expected = "MY_ACCESS_KEY:wQ4ofysef1R7IKnrziqtomqyDvI=:eyJzY29wZSI6Im15LWJ1Y2tldDpzdW5mbG93ZXIuanBnIiwiZGVhZGxpbmUiOjE0NTE0OTEyMDAsInJldHVybkJvZHkiOiJ7XCJuYW1lXCI6JChmbmFtZSksXCJzaXplXCI6JChmc2l6ZSksXCJ3XCI6JChpbWFnZUluZm8ud2lkdGgpLFwiaFwiOiQoaW1hZ2VJbmZvLmhlaWdodCksXCJoYXNoXCI6JChldGFnKX0ifQ==";
+        Assert.assertEquals(expected, token);
+    }
+
+    public void testIsEqual() {
+        String name = "sunflower.jpg";
+        long deadline = 1451491200;
+        String bucket = "my-bucket";
+        String scope = bucket + ":" + name;
+        String putPolicyJsonStr = "{\"scope\":\"" + scope + "\",\"deadline\":" + deadline + ",\"returnBody\":\"{\"name\":$(fname),\"size\":$(fsize),\"w\":$(imageInfo.width),\"h\":$(imageInfo.height),\"hash\":$(etag)}\"}";
+        String putPolicy = "{\"scope\":\"my-bucket:sunflower.jpg\",\"deadline\":1451491200,\"returnBody\":\"{\\\"name\\\":$(fname),\\\"size\\\":$(fsize),\\\"w\\\":$(imageInfo.width),\\\"h\\\":$(imageInfo.height),\\\"hash\\\":$(etag)}\"}";
+//        Assert.assertEquals(putPolicy, putPolicyJsonStr);
+
+        String encodedPutPolicy1 = UrlSafeBase64.encodeToString(putPolicyJsonStr);
+        String encodedPutPolicy2 = UrlSafeBase64.encodeToString(putPolicy);
+        String expected = "eyJzY29wZSI6Im15LWJ1Y2tldDpzdW5mbG93ZXIuanBnIiwiZGVhZGxpbmUiOjE0NTE0OTEyMDAsInJldHVybkJvZHkiOiJ7XCJuYW1lXCI6JChmbmFtZSksXCJzaXplXCI6JChmc2l6ZSksXCJ3XCI6JChpbWFnZUluZm8ud2lkdGgpLFwiaFwiOiQoaW1hZ2VJbmZvLmhlaWdodCksXCJoYXNoXCI6JChldGFnKX0ifQ==";
+        assertEquals(expected,encodedPutPolicy2);
     }
 }

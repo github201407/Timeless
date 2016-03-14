@@ -5,16 +5,13 @@ package com.jen.timeless.bean;
  */
 public class ReturnBody {
 
-    public final String bucket;
     public final String name;
-    public final long size;
-    public final int w;
-    public final int h;
+    public final String size;
+    public final String w;
+    public final String h;
     public final String hash;
 
-    public ReturnBody(String bucket, String name, long size, int w, int h, String hash) {
-
-        this.bucket = bucket;
+    public ReturnBody(String name, String size, String w, String h, String hash) {
         this.name = name;
         this.size = size;
         this.w = w;
