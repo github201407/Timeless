@@ -1,18 +1,16 @@
 package com.jen.timeless;
 
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Environment;
 import android.test.InstrumentationTestCase;
 import android.util.Log;
 
-import com.alibaba.fastjson.JSON;
-import com.jen.timeless.bean.PutPolicy;
-import com.jen.timeless.bean.ReturnBody;
 import com.jen.timeless.utils.HmacSha1;
+import com.jen.timeless.utils.QiUtils;
 import com.qiniu.android.http.ResponseInfo;
 import com.qiniu.android.storage.UpCompletionHandler;
 import com.qiniu.android.storage.UploadManager;
-import com.qiniu.android.utils.Etag;
 import com.qiniu.android.utils.UrlSafeBase64;
 
 import junit.framework.Assert;
@@ -20,7 +18,21 @@ import junit.framework.Assert;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+
+import okhttp3.MediaType;
+import okhttp3.RequestBody;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.jackson.JacksonConverterFactory;
+import retrofit2.http.Multipart;
+import retrofit2.http.POST;
+import retrofit2.http.Part;
 
 /**
  * <a href="http://d.android.com/tools/testing/testing_android.html">Testing Fundamentals</a>
@@ -37,48 +49,15 @@ public class ApplicationTest extends InstrumentationTestCase {
 
         File directory = Environment.getExternalStorageDirectory();
         File imageFile = new File(directory, name);
-        Assert.assertTrue(imageFile.exists());
-        long size = imageFile.length();
-        BitmapFactory.Options opt = new BitmapFactory.Options();
-        opt.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(imageFile.getAbsolutePath(), opt);
-        int w = opt.outWidth;
-        int h = opt.outHeight;
-        String hash = Etag.file(imageFile);
+        String uploadToken = QiUtils.getUpToken(deadline, bucket, name, scope, imageFile);
 
-        /* 1. 将上传策略序列化成为JSON格式：*/
-        ReturnBody returnBody = new ReturnBody(bucket, name, size, w, h, hash);
-        PutPolicy putPolicy = new PutPolicy(scope, deadline, returnBody);
+        //
+        Bitmap bitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
 
-        /* 2. 将上传策略序列化成为JSON格式：*/
-        String putPolicyJsonStr = JSON.toJSONString(putPolicy);
-
-        /* 3. 对JSON编码的上传策略进行URL安全的Base64编码，得到待签名字符串：*/
-        String encodedPutPolicy = UrlSafeBase64.encodeToString(putPolicyJsonStr);
-        String secretKey = "5ac-9ahJ4XZ-1veIYpR7S5BXzZaIMN20qp_af7wY";
-
-        /* 4. 使用SecretKey对上一步生成的待签名字符串计算HMAC-SHA1签名：*/
-        byte[] sign = HmacSha1.hmacSha1byte(encodedPutPolicy, secretKey);
-
-        /* 5. 对签名进行URL安全的Base64编码：*/
-        String encodedSign = UrlSafeBase64.encodeToString(sign);
-
-        /* 6. 将AccessKey、encodedSign和encodedPutPolicy用:连接起来：*/
-        String accessKey = "BuGr5bBZsBUdC-NAGKim9n52BfNPqhRo9fkzTUzP";
-        String uploadToken = accessKey + ':' + encodedSign + ':' + encodedPutPolicy;
-
-
-        UploadManager uploadManager = new UploadManager();
-        uploadManager.put(imageFile, name, uploadToken, new UpCompletionHandler() {
-            @Override
-            public void complete(String key, ResponseInfo info, JSONObject response) {
-                Log.e(TAG, "complete: " + key);
-                Log.e(TAG, "complete: " + info.toString());
-                Log.e(TAG, "complete: " + response.toString());
-            }
-        }, null);
 
     }
+
+
 
     public void testHmacSha1() throws Exception{
         String encodedPutPolicy = "eyJzY29wZSI6Im15LWJ1Y2tldDpzdW5mbG93ZXIuanBnIiwiZGVhZGxpbmUiOjE0NTE0OTEyMDAsInJldHVybkJvZHkiOiJ7XCJuYW1lXCI6JChmbmFtZSksXCJzaXplXCI6JChmc2l6ZSksXCJ3XCI6JChpbWFnZUluZm8ud2lkdGgpLFwiaFwiOiQoaW1hZ2VJbmZvLmhlaWdodCksXCJoYXNoXCI6JChldGFnKX0ifQ==";
@@ -137,5 +116,73 @@ public class ApplicationTest extends InstrumentationTestCase {
                 }, null);
 //            }
 //        });
+    }
+
+    public interface UploadApi {
+        // Request method and URL specified in the annotation
+        // Callback for the parsed response is the last parameter
+
+       /* @GET("/users/{username}")
+        Call<User> getUser(@Path("username") String username);
+
+        @GET("/group/{id}/users")
+        Call<List<User>> groupList(@Path("id") int groupId, @Query("sort") String sort);
+
+        @POST("/users/new")
+        Call<User> createUser(@Body User user);*/
+
+        @Multipart
+        @POST("/some/endpoint")
+        Call<JSONObject> upLoadFile(@Part("file") RequestBody  file, @Part("token") String token);
+    }
+
+    public void testRetrofit() throws Exception{
+        Runnable runnable = new Runnable() {
+            public void run() {
+                try {
+                    upLoadImage();
+                } catch (IOException | InvalidKeyException | NoSuchAlgorithmException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        new Thread(runnable).run();
+
+    }
+
+    private void upLoadImage() throws IOException, InvalidKeyException, NoSuchAlgorithmException {
+        String name = "test.jpg";
+        File directory = Environment.getExternalStorageDirectory();
+        File imageFile = new File(directory, name);
+
+        String BASE_URL = "http://upload.qiniu.com";
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(JacksonConverterFactory.create())
+                .build();
+
+        RequestBody file = RequestBody.create(MediaType.parse("image/*"), imageFile);
+
+        UploadApi apiService = retrofit.create(UploadApi.class);
+
+        long deadline = System.currentTimeMillis() / 1000L;
+        String bucket = "timeless";
+        String scope = name + ":" + bucket;
+        String token = QiUtils.getUpToken(deadline, bucket, name, scope, imageFile);
+        Call<JSONObject> jsonObjectCall = apiService.upLoadFile(file, token);
+//        Response<JSONObject> execute = jsonObjectCall.execute();
+//        assertEquals(200, execute.code());
+        jsonObjectCall.enqueue(new Callback<JSONObject>() {
+            @Override
+            public void onResponse(Call<JSONObject> call, Response<JSONObject> response) {
+                assertEquals(200, response.code());
+                Log.e(TAG, "onResponse: " + response.message());
+            }
+
+            @Override
+            public void onFailure(Call<JSONObject> call, Throwable t) {
+                Log.e(TAG, "onFailure: ", t);
+            }
+        });
     }
 }
