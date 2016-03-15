@@ -46,7 +46,7 @@ public class QiUtils {
 
         /* 2. 将上传策略序列化成为JSON格式：*/
 //        String putPolicyJsonStr = JSON.toJSONString(putPolicy);
-        String putPolicyJsonStr = "{\"scope\":\"" + scope + "\",\"deadline\":" + deadline + ",\"returnBody\":\"{\"name\":$(fname),\"size\":$(fsize),\"w\":$(imageInfo.width),\"h\":$(imageInfo.height),\"hash\":$(etag)}\"}";
+        String putPolicyJsonStr = "{\"scope\":\"" + scope + "\",\"deadline\":" + deadline + ",\"returnBody\":\"{\\\"name\\\":$(fname),\\\"size\\\":$(fsize),\\\"w\\\":$(imageInfo.width),\\\"h\\\":$(imageInfo.height),\\\"hash\\\":$(etag)}\"}";
 
         /* 3. 对JSON编码的上传策略进行URL安全的Base64编码，得到待签名字符串：*/
         String encodedPutPolicy = UrlSafeBase64.encodeToString(putPolicyJsonStr);

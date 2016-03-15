@@ -84,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
 
         UploadApi apiService = retrofit.create(UploadApi.class);
 
-        long deadline = System.currentTimeMillis() / 1000L + 3600;
+        long deadline = System.currentTimeMillis() / 1000L;
         String bucket = "timeless";
         String scope = bucket + ":" + name;
         String token = QiUtils.getUpToken(deadline, scope);
